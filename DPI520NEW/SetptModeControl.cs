@@ -310,8 +310,9 @@ namespace DPI520NEW
             }
             dgvSetpoints.Rows.Add("");
             FileStream fstream = new FileStream(@"С:\test.txt", FileMode.OpenOrCreate);
-            byte[] point = new byte[]
+            byte[] point = new byte[8];
             fstream.Write(pPoints, 0, pPoints.Length);
+
 
         }
     }
