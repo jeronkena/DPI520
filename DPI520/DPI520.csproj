@@ -168,7 +168,7 @@
     <None Include="Resources\Save.png" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\..\..\Библиотеки\CSDevice\CSDevice\CSDevice.csproj">
+    <ProjectReference Include="..\..\CSDevice\CSDevice\CSDevice.csproj">
       <Project>{1994fc96-0ae6-4bba-bfe8-e826c629e511}</Project>
       <Name>CSDevice</Name>
     </ProjectReference>

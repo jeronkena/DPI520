@@ -43,8 +43,8 @@ namespace DPI520NEW
 
         private void UpdatePtLabels()
         {
-            lbCurrentSetpoint.Text = string.Format("Уставка {0}/{1}", currentPtIndex + 1, pPoints.Length);
-            tbCurrentSetpoint.Text = Math.Round(pPoints[currentPtIndex], MainForm.progState.RoundToDigits).ToString();
+           // lbCurrentSetpoint.Text = string.Format("Уставка {0}/{1}", currentPtIndex + 1, pPoints.Length);                //-----------
+           // tbCurrentSetpoint.Text = Math.Round(pPoints[currentPtIndex], MainForm.progState.RoundToDigits).ToString();    //-----------
         }
 
 
@@ -305,13 +305,19 @@ namespace DPI520NEW
 
         private void btnSaveProfile_Click(object sender, EventArgs e)
         {
+            for (int i = 0; i < dgvSetpoints.RowCount; i++)
+            {
+                dgvSetpoints.Rows.Remove(dgvSetpoints.Rows[i]);
+            };
+            
             for (int i = 0; i < nudPointsCount.Value; i++) {
                 dgvSetpoints.Rows.Add("");
-            }
-            dgvSetpoints.Rows.Add("");
-            FileStream fstream = new FileStream(@"С:\test.txt", FileMode.OpenOrCreate);
-            byte[] point = new byte[8];
-            fstream.Write(pPoints, 0, pPoints.Length);
+            };
+
+           // dgvSetpoints.Rows.Add("");
+           // FileStream fstream = new FileStream(@"С:\test.txt", FileMode.OpenOrCreate);
+           // byte[] point = new byte[8];
+           // fstream.Write(pPoints, 0, pPoints.Length);
 
 
         }

@@ -10,6 +10,7 @@ using System.Windows.Forms;
 using CSDevice;
 using CSDevice.Data;
 using System.Threading;
+using DPI520;
 
 namespace DPI520NEW
 {
@@ -297,5 +298,13 @@ namespace DPI520NEW
             }
         }
 
+        private void btnSaveProfile_Click(object sender, EventArgs e)
+        {
+            for (int i = 0; i < (Int32)nudPointsCount.Value; i++)
+            {
+                dgvSetpoints.Rows.Add();
+            }
+            
+        }
     }
 }
