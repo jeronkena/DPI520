@@ -10,6 +10,7 @@ using System.Windows.Forms;
 using CSDevice;
 using CSDevice.Data;
 using System.Threading;
+using System.IO;
 
 namespace DPI520NEW
 {
@@ -217,9 +218,7 @@ namespace DPI520NEW
             if (e.Error != null) Invoke(d, Color.DarkRed, "ОШИБКА! " + e.Error.Message);
             Invoke(d, Color.Black, "");
         }
-
-
-
+        
         private void btnControllerOnOff_Click(object sender, EventArgs e)
         {
             // не выбран контроллер

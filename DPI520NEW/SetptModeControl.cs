@@ -26,9 +26,6 @@ namespace DPI520NEW
 
         private MainForm mainFormRef;
 
-        private Thread SetPThread;
-        private Thread DropPThread;
-
         private delegate void ChangeButtonStatesCallback(bool nextBtn, bool prevBtn, bool conoffBtn, bool ventBtn);
 
         public void ChangeButtonStates(bool nextBtn, bool prevBtn, bool conoffBtn, bool ventBtn)
@@ -43,8 +40,12 @@ namespace DPI520NEW
 
         private void UpdatePtLabels()
         {
-           // lbCurrentSetpoint.Text = string.Format("Уставка {0}/{1}", currentPtIndex + 1, pPoints.Length);                //-----------
-           // tbCurrentSetpoint.Text = Math.Round(pPoints[currentPtIndex], MainForm.progState.RoundToDigits).ToString();    //-----------
+            lbCurrentSetpoint.Text = string.Format("Уставка {0}/{1}", currentPtIndex + 1, pPoints.Length);
+            tbCurrentSetpoint.Text = Math.Round(pPoints[currentPtIndex], MainForm.progState.RoundToDigits).ToString();
+
+            //tbPrevPoint.Text = (currentPtIndex > 0) ? Math.Round(pPoints[currentPtIndex - 1], MainForm.progState.RoundToDigits).ToString() : "---";
+            //tbNextPoint.Text = (currentPtIndex < pPoints.Length - 1) ? Math.Round(pPoints[currentPtIndex + 1], MainForm.progState.RoundToDigits).ToString() : "---";
+            if (controllerIsOn) MainForm.CurrentDPI.SetPressure(pPoints[currentPtIndex], MainForm.progState.PIsAbsolute);
         }
 
 
@@ -121,139 +122,93 @@ namespace DPI520NEW
             //currentPtIndex = 0;
             //Control_PTypeChanged(null);
 
-            //try
-            //{
-            //    MainForm.CurrentDPI.SetMeasureMode();
-            //    controllerIsOn = false;
-            //    mainFormRef.UpdateStatusLabel(Color.Black, "");
-            //}
-            //catch (Exception exp)
-            //{
-            //    mainFormRef.UpdateStatusLabel(Color.DarkRed, "ОШИБКА! " + exp.Message);
-            //}
-        }
-
-
-
-        private void SetPressureDrill()
-        {
-            MainForm.UpdateStatusLabelCallback d = new MainForm.UpdateStatusLabelCallback(mainFormRef.UpdateStatusLabel);
             try
             {
-                MainForm.CurrentDPI.SetPressure(pPoints[currentPtIndex], MainForm.progState.PIsAbsolute);
-                Invoke(d, Color.Black, "");
-            }
-            catch (ThreadAbortException)
-            {
-                Invoke(d, Color.Black, "");
-                return;
-            }
-            catch (Exception exp)
-            {
-                Invoke(d, Color.DarkRed, "ОШИБКА! " + exp.Message);
-            }
-        }
-
-
-
-        private void DropPressureDrill()
-        {
-            ChangeButtonStatesCallback dbtns = new ChangeButtonStatesCallback(ChangeButtonStates);
-            MainForm.UpdateStatusLabelCallback d = new MainForm.UpdateStatusLabelCallback(mainFormRef.UpdateStatusLabel);
-            try
-            {
-                MainForm.CurrentDPI.Ventilate();
-                Invoke(d, Color.Black, "");
-            }
-            catch (Exception exp)
-            {
-                Invoke(d, Color.DarkRed, "ОШИБКА! " + exp.Message);
-            }
-            finally
-            {
-                Invoke(dbtns, true, true, true, true);
-            }
-        }
-
-
-
-        private void btnControllerOnOff_Click(object sender, EventArgs e)
-        {
-            // не выбран контроллер
-            if (MainForm.CurrentDPI == null)
-            {
+                MainForm.CurrentDPI.SetMeasureMode();
                 controllerIsOn = false;
-                mainFormRef.UpdateStatusLabel(Color.DarkRed, "ОШИБКА! Не выбран задатчик давления!");
-                return;
-            }
-            else
-            {
                 mainFormRef.UpdateStatusLabel(Color.Black, "");
             }
-
-            // контроллер включен
-            if (controllerIsOn)
+            catch (Exception exp)
             {
-                btnControllerOnOff.Text = "Включить контроллер";
-                try
-                {
-                    // прекращаем подачу давления
-                    if (SetPThread != null && SetPThread.IsAlive)
-                    {
-                        SetPThread.Abort();
-                        SetPThread.Join(100);
-                    }
-
-                    MainForm.CurrentDPI.SetMeasureMode();
-                    controllerIsOn = false;
-                    mainFormRef.UpdateStatusLabel(Color.Black, "");
-                }
-                catch (Exception exp)
-                {
-                    mainFormRef.UpdateStatusLabel(Color.DarkRed, "ОШИБКА! " + exp.Message);
-                }
+                mainFormRef.UpdateStatusLabel(Color.DarkRed, "ОШИБКА! " + exp.Message);
             }
-            else
+        }
+
+        private void backgroundWorker1_DoWork(object sender, DoWorkEventArgs e)
+        {
+            BackgroundWorker worker = sender as BackgroundWorker;
+            MainForm.UpdateColor changeColor = new MainForm.UpdateColor(mainFormRef.ChangeCurrentPColor);
+            double accuracy;        // точность
+            double differentValues; // разность текущего и установленного давлений
+
+            MainForm.CurrentDPI.SetPressure(pPoints[currentPtIndex], MainForm.progState.PIsAbsolute);
+
+            while (!worker.CancellationPending)
+            {
+                accuracy = MainForm.CurrentDPI.Accuracy * MainForm.CurrentDPI.MaximalPressure;
+                differentValues = Math.Abs(Math.Round(pPoints[currentPtIndex], MainForm.progState.RoundToDigits) - MainForm.CurrentP);
+                if (differentValues > accuracy)
+                    Invoke(changeColor, 1);
+                else
+                    Invoke(changeColor, 2);
+                Thread.Sleep(500);
+            }
+
+            Invoke(changeColor, 0);
+            e.Cancel = true;
+            return;
+        }
+
+
+
+        private void backgroundWorker1_RunWorkerCompleted(object sender, RunWorkerCompletedEventArgs e)
+        {
+            MainForm.UpdateStatusLabelCallback d = new MainForm.UpdateStatusLabelCallback(mainFormRef.UpdateStatusLabel);
+            if (e.Error != null) Invoke(d, Color.DarkRed, "ОШИБКА! " + e.Error.Message);
+            Invoke(d, Color.Black, "");
+        }
+
+        
+        private void btnControllerOnOff_Click(object sender, EventArgs e)
+        {
+
+            // не выбран контроллер
+            if (DPIIsNull()) return;
+
+            if (!controllerIsOn) // включаем контроллер
             {
                 btnControllerOnOff.Text = "Выключить контроллер";
                 controllerIsOn = true;
-
-                // переходим к задаче давления
-                if (SetPThread != null && SetPThread.IsAlive)
-                {
-                    SetPThread.Abort();
-                    SetPThread.Join(100);
-                }
-                SetPThread = new Thread(SetPressureDrill);
-                SetPThread.Start();
+                if (!backgroundWorker1.IsBusy) backgroundWorker1.RunWorkerAsync();
+            }
+            else // выключаем контроллер
+            {
+                backgroundWorker1.CancelAsync();
+                offController();
             }
         }
+    
 
 
 
         private void btnVent_Click(object sender, EventArgs e)
+    {
+
+        if (DPIIsNull()) return;
+
+        ChangeButtonStates(false, false, false, false);
+        backgroundWorker1.CancelAsync();
+        MainForm.CurrentDPI.Ventilate();
+        offController();
+        ChangeButtonStates(true, true, true, true);
+    }
+    
+
+        private void offController()
         {
-            if (MainForm.CurrentDPI == null)
-            {
-                mainFormRef.UpdateStatusLabel(Color.DarkRed, "ОШИБКА! Не выбран задатчик давления!");
-                return;
-            }
-            else
-            {
-                mainFormRef.UpdateStatusLabel(Color.Black, "");
-            }
-
-            ChangeButtonStates(false, false, false, false);
-
-            if (SetPThread != null && SetPThread.IsAlive)
-            {
-                SetPThread.Abort();
-                SetPThread.Join(100);
-            }
-            DropPThread = new Thread(DropPressureDrill);
-            DropPThread.Start();
+         btnControllerOnOff.Text = "Включить контроллер";
+         controllerIsOn = false;
         }
-
 
 
         private void btnPrevP_Click(object sender, EventArgs e)
@@ -263,18 +218,6 @@ namespace DPI520NEW
             // уменьшаем индекс точки
             currentPtIndex--;
             UpdatePtLabels();
-
-            // переходим к задаче давления, если контроллер включен
-            if (controllerIsOn)
-            {
-                if (SetPThread != null && SetPThread.IsAlive)
-                {
-                    SetPThread.Abort();
-                    SetPThread.Join(100);
-                }
-                SetPThread = new Thread(SetPressureDrill);
-                SetPThread.Start();
-            }
         }
 
         private void btnNextP_Click(object sender, EventArgs e)
@@ -284,23 +227,51 @@ namespace DPI520NEW
             // уменьшаем индекс точки
             currentPtIndex++;
             UpdatePtLabels();
-
-            // переходим к задаче давления, если контроллер включен
-            if (controllerIsOn)
+        }
+        private bool DPIIsNull()
+        {
+            if (MainForm.CurrentDPI == null)
             {
-                if (SetPThread != null && SetPThread.IsAlive)
-                {
-                    SetPThread.Abort();
-                    SetPThread.Join(100);
-                }
-                SetPThread = new Thread(SetPressureDrill);
-                SetPThread.Start();
+                controllerIsOn = false;
+                mainFormRef.UpdateStatusLabel(Color.DarkRed, "ОШИБКА! Не выбран задатчик давления!");
+                return true;
             }
+
+            mainFormRef.UpdateStatusLabel(Color.Black, "");
+            return false;
         }
 
         private void btnLoadProfile_Click(object sender, EventArgs e)
         {
-          //fleStream fstream = new FileStream(@"")
+            string patch = @"test.txt";
+            FileStream fstream = new FileStream(patch, FileMode.OpenOrCreate);
+            StreamWriter streamWriter = new StreamWriter(fstream);
+            for (int j = 0; j < nudPointsCount.Value; j++)
+            {
+                streamWriter.WriteLine("{0} ", j + 1);
+            };
+            streamWriter.Close();
+            fstream.Close();
+
+            openFileDialog1.ShowDialog();
+            patch = openFileDialog1.FileName;
+            StreamReader streamreader = new StreamReader(patch);
+            string str = "";
+            pPoints = new double[(int)nudPointsCount.Value];
+            int count = 0;
+            currentPtIndex = 0;
+            while ((str = streamreader.ReadLine()) != null)
+            {
+                if (count < (int)nudPointsCount.Value) {
+                
+                dgvSetpoints.Rows.Add(str);
+                pPoints[count] = Convert.ToDouble(str);
+                count++;
+            };
+        }
+            streamreader.Close();
+            UpdatePtLabels();
+
         }
 
         private void btnSaveProfile_Click(object sender, EventArgs e)
@@ -309,10 +280,8 @@ namespace DPI520NEW
             {
                 dgvSetpoints.Rows.Remove(dgvSetpoints.Rows[i]);
             };
+
             
-            for (int i = 0; i < nudPointsCount.Value; i++) {
-                dgvSetpoints.Rows.Add("");
-            };
 
            // dgvSetpoints.Rows.Add("");
            // FileStream fstream = new FileStream(@"С:\test.txt", FileMode.OpenOrCreate);
@@ -321,5 +290,32 @@ namespace DPI520NEW
 
 
         }
+        //private void nudPointCount_ValueChanged(object sender, EventArgs e)
+        //{
+        //    ChangePoints();
+        //}
+
+
+
+        //private void ChangePoints()
+        //{
+        //    // заполняем точки
+        //    pPoints = new double[(int)nudPointsCount.Value];
+        //    for (int i = 0; i < pPoints.Length; i++)
+        //        pPoints[i] = (double)i;
+
+        //    UpdatePtLabels();
+        //}
+        private void tableLayoutPanel1_Paint(object sender, PaintEventArgs e)
+        {
+
+        }
+
+        private void dgvSetpoints_CellValueChanged(object sender, DataGridViewCellEventArgs e)
+        {
+
+        }
+
+       
     }
 }

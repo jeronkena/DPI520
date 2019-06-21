@@ -44,6 +44,8 @@
             this.nudPointsCount = new System.Windows.Forms.NumericUpDown();
             this.dgvSetpoints = new System.Windows.Forms.DataGridView();
             this.ColumnSetpt = new System.Windows.Forms.DataGridViewTextBoxColumn();
+            this.openFileDialog1 = new System.Windows.Forms.OpenFileDialog();
+            this.backgroundWorker1 = new System.ComponentModel.BackgroundWorker();
             this.tableLayoutPanel1.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.nudPointsCount)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.dgvSetpoints)).BeginInit();
@@ -82,6 +84,7 @@
             this.tableLayoutPanel1.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 20F));
             this.tableLayoutPanel1.Size = new System.Drawing.Size(344, 556);
             this.tableLayoutPanel1.TabIndex = 1;
+            this.tableLayoutPanel1.Paint += new System.Windows.Forms.PaintEventHandler(this.tableLayoutPanel1_Paint);
             // 
             // btnPrevP
             // 
@@ -114,6 +117,7 @@
             this.btnNextP.Text = "Следующая точка";
             this.btnNextP.TextImageRelation = System.Windows.Forms.TextImageRelation.TextBeforeImage;
             this.btnNextP.UseVisualStyleBackColor = true;
+            this.btnNextP.Click += new System.EventHandler(this.btnNextP_Click);
             // 
             // lbCurrentSetpoint
             // 
@@ -188,6 +192,7 @@
             this.btnVent.Text = "Сброс давления";
             this.btnVent.TextImageRelation = System.Windows.Forms.TextImageRelation.ImageBeforeText;
             this.btnVent.UseVisualStyleBackColor = true;
+            this.btnVent.Click += new System.EventHandler(this.btnVent_Click);
             // 
             // btnControllerOnOff
             // 
@@ -204,6 +209,7 @@
             this.btnControllerOnOff.Text = "Включить контроллер";
             this.btnControllerOnOff.TextImageRelation = System.Windows.Forms.TextImageRelation.ImageBeforeText;
             this.btnControllerOnOff.UseVisualStyleBackColor = true;
+            this.btnControllerOnOff.Click += new System.EventHandler(this.btnControllerOnOff_Click);
             // 
             // label1
             // 
@@ -277,6 +283,7 @@
             this.dgvSetpoints.ShowEditingIcon = false;
             this.dgvSetpoints.Size = new System.Drawing.Size(338, 240);
             this.dgvSetpoints.TabIndex = 6;
+            this.dgvSetpoints.CellValueChanged += new System.Windows.Forms.DataGridViewCellEventHandler(this.dgvSetpoints_CellValueChanged);
             // 
             // ColumnSetpt
             // 
@@ -285,6 +292,17 @@
             this.ColumnSetpt.DefaultCellStyle = dataGridViewCellStyle2;
             this.ColumnSetpt.HeaderText = "Точки уставки, кгс/см2";
             this.ColumnSetpt.Name = "ColumnSetpt";
+            // 
+            // openFileDialog1
+            // 
+            this.openFileDialog1.FileName = "openFileDialog1";
+            // 
+            // backgroundWorker1
+            // 
+            this.backgroundWorker1.WorkerReportsProgress = true;
+            this.backgroundWorker1.WorkerSupportsCancellation = true;
+            this.backgroundWorker1.DoWork += new System.ComponentModel.DoWorkEventHandler(this.backgroundWorker1_DoWork);
+            this.backgroundWorker1.RunWorkerCompleted += new System.ComponentModel.RunWorkerCompletedEventHandler(this.backgroundWorker1_RunWorkerCompleted);
             // 
             // SetptModeControl
             // 
@@ -316,5 +334,7 @@
         private System.Windows.Forms.NumericUpDown nudPointsCount;
         private System.Windows.Forms.DataGridView dgvSetpoints;
         private System.Windows.Forms.DataGridViewTextBoxColumn ColumnSetpt;
+        private System.Windows.Forms.OpenFileDialog openFileDialog1;
+        private System.ComponentModel.BackgroundWorker backgroundWorker1;
     }
 }
