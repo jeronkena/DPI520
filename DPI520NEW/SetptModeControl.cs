@@ -25,6 +25,7 @@ namespace DPI520NEW
         private double[] pPoints;
 
         private MainForm mainFormRef;
+        private bool numericUpDown; 
 
         private delegate void ChangeButtonStatesCallback(bool nextBtn, bool prevBtn, bool conoffBtn, bool ventBtn);
 
@@ -35,25 +36,32 @@ namespace DPI520NEW
             btnControllerOnOff.Enabled = conoffBtn;
             btnVent.Enabled = ventBtn;
         }
-
-
-
         private void UpdatePtLabels()
         {
-            lbCurrentSetpoint.Text = string.Format("Уставка {0}/{1}", currentPtIndex + 1, pPoints.Length);
+            lbCurrentSetpoint.Text = string.Format("Уставка {0}/{1}", currentPtIndex + 1, nudPointsCount.Value);
             tbCurrentSetpoint.Text = Math.Round(pPoints[currentPtIndex], MainForm.progState.RoundToDigits).ToString();
+            try
+            {
+                if (dgvSetpoints.Rows.Count != 0) {
+                for (int i = 0; i < nudPointsCount.Value; i++)
+                {
+                    dgvSetpoints.Rows[i].Selected = false;
+                }
+            }
+                dgvSetpoints.Rows[currentPtIndex].Selected = true;
+                if (controllerIsOn) MainForm.CurrentDPI.SetPressure(pPoints[currentPtIndex], MainForm.progState.PIsAbsolute);
+            }
+            catch
+            {
 
-            //tbPrevPoint.Text = (currentPtIndex > 0) ? Math.Round(pPoints[currentPtIndex - 1], MainForm.progState.RoundToDigits).ToString() : "---";
-            //tbNextPoint.Text = (currentPtIndex < pPoints.Length - 1) ? Math.Round(pPoints[currentPtIndex + 1], MainForm.progState.RoundToDigits).ToString() : "---";
-            if (controllerIsOn) MainForm.CurrentDPI.SetPressure(pPoints[currentPtIndex], MainForm.progState.PIsAbsolute);
+            }
         }
-
-
-
+        
         public SetptModeControl(Form parentForm)
         {
             InitializeComponent();
-
+            numericUpDown = false;
+            pPoints = new double[(int)nudPointsCount.Maximum];
             mainFormRef = (MainForm)parentForm;
 
             mainFormRef.OnPUnitsChanged += new MainForm.PUnitsChangedEventHandler(Control_PUnitsChanged);
@@ -71,27 +79,30 @@ namespace DPI520NEW
             {
                 UpdatePtLabels();
             }
+            
         }
 
         private void Control_PUnitsChanged(object source, MainForm.PUnitsChangedEventArgs args)
         {
-//            nudMaxP.DecimalPlaces = MainForm.progState.RoundToDigits;
-//            nudMaxP.Maximum = (decimal)PUnitConverter.ConvertP((double)nudMaxP.Maximum, args.OldPUnits, MainForm.progState.CurrentPUnits);
-
+            for (int i = 0; i < pPoints.Length; i++)
+            {
+                pPoints[i] = (double)PUnitConverter.ConvertP((double)pPoints[i], args.OldPUnits, MainForm.progState.CurrentPUnits);
+            }
+            for (int i = 0; i < nudPointsCount.Value; i++)
+            {
+                dgvSetpoints.Rows[i].Cells[0].Value = Math.Round(((double)PUnitConverter.ConvertP((double)pPoints[i], args.OldPUnits, MainForm.progState.CurrentPUnits)), 1);
+            }
             UpdatePtLabels();
         }
-
-
-
         private void Control_PTypeChanged(object source)
         {
             if (MainForm.progState.PIsAbsolute)
             {
-//                nudMaxP.Maximum += (decimal)MainForm.progState.CurrentBarometricP;
+
             }
             else
             {
-//                nudMaxP.Maximum -= (decimal)MainForm.progState.CurrentBarometricP;
+
             }
 
             UpdatePtLabels();
@@ -101,27 +112,6 @@ namespace DPI520NEW
 
         private void Control_NewControllerSelected(object source)
         {
-            // пределы
-            //nudMaxP.DecimalPlaces = MainForm.progState.RoundToDigits;
-            //nudMaxP.Maximum = (decimal)MainForm.CurrentDPI.MaximalPressure;
-            //nudMaxP.Minimum = (decimal)MainForm.CurrentDPI.MinimalPressure;
-            //nudMaxP.Increment = Math.Round((nudMaxP.Maximum - nudMaxP.Minimum) / 1000, 1);
-            //if (nudMaxP.Increment < 0.1M) nudMaxP.Increment = 0.1M;
-
-            //nudMinP.DecimalPlaces = MainForm.progState.RoundToDigits;
-            //nudMinP.Maximum = (decimal)MainForm.CurrentDPI.MaximalPressure;
-            //nudMinP.Minimum = (decimal)MainForm.CurrentDPI.MinimalPressure;
-            //nudMinP.Increment = nudMaxP.Increment;
-
-            //// заполняем точки
-            //pPoints = new double[(int)nudPointCount.Value];
-            //for (int i = 0; i < pPoints.Length; i++)
-            //    pPoints[i] = (double)(nudMinP.Value + (nudMaxP.Value - nudMinP.Value) / (pPoints.Length - 1) * i);
-
-            //// обновляем интерфейсные таблички
-            //currentPtIndex = 0;
-            //Control_PTypeChanged(null);
-
             try
             {
                 MainForm.CurrentDPI.SetMeasureMode();
@@ -159,8 +149,7 @@ namespace DPI520NEW
             return;
         }
 
-
-
+        
         private void backgroundWorker1_RunWorkerCompleted(object sender, RunWorkerCompletedEventArgs e)
         {
             MainForm.UpdateStatusLabelCallback d = new MainForm.UpdateStatusLabelCallback(mainFormRef.UpdateStatusLabel);
@@ -171,7 +160,6 @@ namespace DPI520NEW
         
         private void btnControllerOnOff_Click(object sender, EventArgs e)
         {
-
             // не выбран контроллер
             if (DPIIsNull()) return;
 
@@ -187,9 +175,6 @@ namespace DPI520NEW
                 offController();
             }
         }
-    
-
-
 
         private void btnVent_Click(object sender, EventArgs e)
     {
@@ -203,27 +188,25 @@ namespace DPI520NEW
         ChangeButtonStates(true, true, true, true);
     }
     
-
         private void offController()
         {
          btnControllerOnOff.Text = "Включить контроллер";
          controllerIsOn = false;
         }
 
-
-        private void btnPrevP_Click(object sender, EventArgs e)
+        private void btnPrevP_Click_1(object sender, EventArgs e)
         {
             if (currentPtIndex == 0) return;
 
             // уменьшаем индекс точки
             currentPtIndex--;
+            
             UpdatePtLabels();
         }
 
         private void btnNextP_Click(object sender, EventArgs e)
         {
-            if (currentPtIndex == pPoints.Length - 1) return;
-
+            if (currentPtIndex == nudPointsCount.Value - 1) return;
             // уменьшаем индекс точки
             currentPtIndex++;
             UpdatePtLabels();
@@ -243,69 +226,49 @@ namespace DPI520NEW
 
         private void btnLoadProfile_Click(object sender, EventArgs e)
         {
-            string patch = @"test.txt";
-            FileStream fstream = new FileStream(patch, FileMode.OpenOrCreate);
-            StreamWriter streamWriter = new StreamWriter(fstream);
-            for (int j = 0; j < nudPointsCount.Value; j++)
-            {
-                streamWriter.WriteLine("{0} ", j + 1);
-            };
-            streamWriter.Close();
-            fstream.Close();
-
+            numericUpDown = true;
+            string patch;
             openFileDialog1.ShowDialog();
             patch = openFileDialog1.FileName;
-            StreamReader streamreader = new StreamReader(patch);
-            string str = "";
-            pPoints = new double[(int)nudPointsCount.Value];
-            int count = 0;
-            currentPtIndex = 0;
-            while ((str = streamreader.ReadLine()) != null)
-            {
-                if (count < (int)nudPointsCount.Value) {
-                
-                dgvSetpoints.Rows.Add(str);
-                pPoints[count] = Convert.ToDouble(str);
-                count++;
-            };
-        }
-            streamreader.Close();
-            UpdatePtLabels();
+            if (patch != "") {
+                StreamReader streamreader = new StreamReader(patch);
+                string str = "";
+                int count = 0;
+                currentPtIndex = 0;
 
+                dgvSetpoints.Rows.Clear();
+                while ((str = streamreader.ReadLine()) != null)
+                {
+                    // if (count < (int)nudPointsCount.Value) {
+
+                    dgvSetpoints.Rows.Add(str);
+                    pPoints[count] = Convert.ToDouble(str);
+                    count++;
+                    // };
+                }
+                nudPointsCount.Value = count;
+                streamreader.Close();
+                UpdatePtLabels();
+            }
         }
 
         private void btnSaveProfile_Click(object sender, EventArgs e)
         {
-            for (int i = 0; i < dgvSetpoints.RowCount; i++)
+            saveFileDialog1.ShowDialog();
+            string filename = saveFileDialog1.FileName;
+            if (filename != "")
             {
-                dgvSetpoints.Rows.Remove(dgvSetpoints.Rows[i]);
-            };
-
-            
-
-           // dgvSetpoints.Rows.Add("");
-           // FileStream fstream = new FileStream(@"С:\test.txt", FileMode.OpenOrCreate);
-           // byte[] point = new byte[8];
-           // fstream.Write(pPoints, 0, pPoints.Length);
-
-
+                FileStream fstream = new FileStream(filename, FileMode.OpenOrCreate);
+                StreamWriter streamWriter = new StreamWriter(fstream);
+                for (int j = 0; j < nudPointsCount.Value; j++)
+                {
+                    streamWriter.WriteLine("{0} ", pPoints[j]);
+                };
+                streamWriter.Close();
+                fstream.Close();
+            }
         }
-        //private void nudPointCount_ValueChanged(object sender, EventArgs e)
-        //{
-        //    ChangePoints();
-        //}
-
-
-
-        //private void ChangePoints()
-        //{
-        //    // заполняем точки
-        //    pPoints = new double[(int)nudPointsCount.Value];
-        //    for (int i = 0; i < pPoints.Length; i++)
-        //        pPoints[i] = (double)i;
-
-        //    UpdatePtLabels();
-        //}
+ 
         private void tableLayoutPanel1_Paint(object sender, PaintEventArgs e)
         {
 
@@ -313,9 +276,36 @@ namespace DPI520NEW
 
         private void dgvSetpoints_CellValueChanged(object sender, DataGridViewCellEventArgs e)
         {
-
+            if (e.RowIndex <= 20 &&  e.RowIndex >= 0)
+            {
+                pPoints[e.RowIndex] = Convert.ToDouble(dgvSetpoints.Rows[e.RowIndex].Cells[0].Value);
+                UpdatePtLabels();
+            };
         }
 
-       
+        private void nudPointsCount_ValueChanged(object sender, EventArgs e)
+        {
+            if (numericUpDown == false) 
+            {
+                int rowcount = (int)nudPointsCount.Value - Convert.ToInt32(Convert.ToString(dgvSetpoints.RowCount, 10));
+                if (rowcount > 0)
+                {
+                    dgvSetpoints.Rows.Add(rowcount);
+                }
+                else
+                {
+                    for (int i = 0; i < Math.Abs(rowcount); i++)
+                    {
+                        dgvSetpoints.Rows.Remove(dgvSetpoints.Rows[dgvSetpoints.Rows.Count - 1]);
+                    }
+                }
+            }
+            else
+            {
+                numericUpDown = false;
+            }
+            UpdatePtLabels();
+        }
+        
     }
 }
