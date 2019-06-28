@@ -18,7 +18,7 @@ namespace DPI520NEW
         {
             InitializeComponent();
             pStateInit = new ProgramState(MainForm.progState);
-//            if (MainForm.CurrentDPI != null && MainForm.CurrentDPI.HasBarometricSensor) nudBarometricP.Enabled = false;
+            //            if (MainForm.CurrentDPI != null && MainForm.CurrentDPI.HasBarometricSensor) nudBarometricP.Enabled = false;
         }
 
         private void nudSetpointPrecision_ValueChanged(object sender, EventArgs e)
@@ -57,6 +57,7 @@ namespace DPI520NEW
 
         private void btnOK_Click(object sender, EventArgs e)
         {
+           
         }
 
         private void nudGraphTScale_ValueChanged(object sender, EventArgs e)

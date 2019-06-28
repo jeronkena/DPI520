@@ -25,6 +25,7 @@ namespace DPI520NEW
         private double[] pPoints;
 
         private MainForm mainFormRef;
+      
         private bool numericUpDown; 
 
         private delegate void ChangeButtonStatesCallback(bool nextBtn, bool prevBtn, bool conoffBtn, bool ventBtn);
@@ -63,10 +64,10 @@ namespace DPI520NEW
             numericUpDown = false;
             pPoints = new double[(int)nudPointsCount.Maximum];
             mainFormRef = (MainForm)parentForm;
-
             mainFormRef.OnPUnitsChanged += new MainForm.PUnitsChangedEventHandler(Control_PUnitsChanged);
             mainFormRef.OnPTypeChanged += new MainForm.PTypeChangedEventHandler(Control_PTypeChanged);
             mainFormRef.OnNewControllerSelected += new MainForm.SelectedControllerChangedEventHandler(Control_NewControllerSelected);
+           
 
             nudPointsCount.Value = 10;
             currentPtIndex = 0;
@@ -81,35 +82,49 @@ namespace DPI520NEW
             }
             
         }
+        private void CurrentBP_Changed()
+        {
 
+        }
         private void Control_PUnitsChanged(object source, MainForm.PUnitsChangedEventArgs args)
         {
+            // не меняем реальное давление при смене едениц
+            bool controllerIsOnOld = controllerIsOn;
+            controllerIsOn = false;
             for (int i = 0; i < pPoints.Length; i++)
             {
                 pPoints[i] = (double)PUnitConverter.ConvertP((double)pPoints[i], args.OldPUnits, MainForm.progState.CurrentPUnits);
             }
             for (int i = 0; i < nudPointsCount.Value; i++)
             {
-                dgvSetpoints.Rows[i].Cells[0].Value = Math.Round(((double)PUnitConverter.ConvertP((double)pPoints[i], args.OldPUnits, MainForm.progState.CurrentPUnits)), 1);
+                dgvSetpoints.Rows[i].Cells[0].Value = pPoints[i];
             }
+            controllerIsOn = controllerIsOnOld;
             UpdatePtLabels();
         }
+
         private void Control_PTypeChanged(object source)
         {
-            if (MainForm.progState.PIsAbsolute)
-            {
+            // не меняем реальное давление при смене едениц
+            bool controllerIsOnOld = controllerIsOn;
+            controllerIsOn = false;
+            for (int i = 0; i < nudPointsCount.Value; i++) {
+                if (MainForm.progState.PIsAbsolute)
+                {
+                    pPoints[i] = pPoints[i] + Math.Round(MainForm.progState.CurrentBarometricP, MainForm.progState.RoundToDigits);
+                    dgvSetpoints.Rows[i].Cells[0].Value = pPoints[i];
+                }
+                else
 
+                {
+                    pPoints[i] = pPoints[i] - Math.Round(MainForm.progState.CurrentBarometricP, MainForm.progState.RoundToDigits);
+                    dgvSetpoints.Rows[i].Cells[0].Value = pPoints[i];
+                }
             }
-            else
-            {
-
-            }
-
+            controllerIsOn = controllerIsOnOld;
             UpdatePtLabels();
         }
-
-
-
+        
         private void Control_NewControllerSelected(object source)
         {
             try
@@ -227,45 +242,49 @@ namespace DPI520NEW
         private void btnLoadProfile_Click(object sender, EventArgs e)
         {
             numericUpDown = true;
-            string patch;
-            openFileDialog1.ShowDialog();
-            patch = openFileDialog1.FileName;
-            if (patch != "") {
-                StreamReader streamreader = new StreamReader(patch);
-                string str = "";
-                int count = 0;
-                currentPtIndex = 0;
+            openFileDialog1.InitialDirectory = "C:\\Users\\user\\Desktop";
+            openFileDialog1.Filter = "text files(*.txt)|*.txt";
+            if (openFileDialog1.ShowDialog() == DialogResult.OK)
+            {
+                string patch = openFileDialog1.FileName;
+               
+                    StreamReader streamreader = new StreamReader(patch);
+                    string str = "";
+                    int count = 0;
+                    currentPtIndex = 0;
 
-                dgvSetpoints.Rows.Clear();
-                while ((str = streamreader.ReadLine()) != null)
-                {
-                    // if (count < (int)nudPointsCount.Value) {
+                    dgvSetpoints.Rows.Clear();
+                    while ((str = streamreader.ReadLine()) != null)
+                    {
+                        // if (count < (int)nudPointsCount.Value) {
 
-                    dgvSetpoints.Rows.Add(str);
-                    pPoints[count] = Convert.ToDouble(str);
-                    count++;
-                    // };
-                }
-                nudPointsCount.Value = count;
-                streamreader.Close();
-                UpdatePtLabels();
+                        dgvSetpoints.Rows.Add(str);
+                        pPoints[count] = Convert.ToDouble(str);
+                        count++;
+                        // };
+                    }
+                    nudPointsCount.Value = count;
+                    streamreader.Close();
+                    UpdatePtLabels();
+                
             }
         }
 
         private void btnSaveProfile_Click(object sender, EventArgs e)
         {
-            saveFileDialog1.ShowDialog();
-            string filename = saveFileDialog1.FileName;
-            if (filename != "")
+            saveFileDialog1.InitialDirectory = "C:\\Users\\user\\Desktop";
+            saveFileDialog1.Filter = "text files(*.txt)|*.txt";
+            if (saveFileDialog1.ShowDialog() == DialogResult.OK)
             {
-                FileStream fstream = new FileStream(filename, FileMode.OpenOrCreate);
-                StreamWriter streamWriter = new StreamWriter(fstream);
-                for (int j = 0; j < nudPointsCount.Value; j++)
-                {
-                    streamWriter.WriteLine("{0} ", pPoints[j]);
-                };
-                streamWriter.Close();
-                fstream.Close();
+                string filename = saveFileDialog1.FileName;
+                    FileStream fstream = new FileStream(filename, FileMode.OpenOrCreate);
+                    StreamWriter streamWriter = new StreamWriter(fstream);
+                    for (int j = 0; j < nudPointsCount.Value; j++)
+                    {
+                        streamWriter.WriteLine("{0} ", pPoints[j]);
+                    };
+                    streamWriter.Close();
+                    fstream.Close();
             }
         }
  
@@ -306,6 +325,28 @@ namespace DPI520NEW
             }
             UpdatePtLabels();
         }
-        
+
+        private void dgvSetpoints_MouseClick(object sender, MouseEventArgs e)
+        {
+            if (e.Button == MouseButtons.Right)
+            {
+                contextMenuStrip1.Show(Cursor.Position);
+            }
+        }
+
+        private void contextMenuStrip1_Opening(object sender, CancelEventArgs e)
+        {
+
+        }
+
+        private void очиститьToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            dgvSetpoints.Rows.Clear();
+            for (int i = 0; i < pPoints.Length; i++)
+            {
+                pPoints[i] = 0;
+            }
+            //pPoints = null;
+        }
     }
 }

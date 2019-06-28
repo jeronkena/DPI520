@@ -19,6 +19,7 @@ namespace DPI520NEW
     /// </summary>
     public struct ProgramState
     {
+
         /// <summary>
         /// Режим управления контроллером: 0 - основной; 1 - разделитель; 2 - по точкам
         /// </summary>
@@ -167,12 +168,17 @@ namespace DPI520NEW
         public delegate void UpdateStatusLabelCallback(Color col, string txt);
         public delegate void UpdateText(string text);
         public delegate void UpdateColor(int i);
+        public delegate void CurrentBPChangedEventHandler(object source);
+        /// <summary>
+        /// Событие об изменении значения атмосферного давления
+        /// </summary>
+        public event CurrentBPChangedEventHandler CurrentBarometricPChanged;
 
         /// <summary>
         /// Событие об изменении единиц давления
         /// </summary>
         public event PUnitsChangedEventHandler OnPUnitsChanged;
-
+       
         /// <summary>
         /// Событие об изменении типа давления
         /// </summary>
@@ -188,7 +194,7 @@ namespace DPI520NEW
         public MainForm()
         {
             InitializeComponent();
-
+            CurrentBarometricPChanged += new MainForm.CurrentBPChangedEventHandler(CurrentBPChanged);
             progState = new ProgramState();
             progState.CurrentPUnits = PressureUnits.KGS;
             progState.CurrentBarometricP = 1.0;
@@ -209,10 +215,12 @@ namespace DPI520NEW
 
             var myPane = zgGraph.GraphPane;
             myPane.XAxis.Scale.MaxAuto = true;
-
             ticker.Interval = progState.ReadPInterval * 1000;
         }
-
+        private void CurrentBPChanged(object source)
+        {
+            MessageBox.Show("gdgfdfghfdg");
+        }
 
 
         private void tsbtnSettings_Click(object sender, EventArgs e)
@@ -220,6 +228,8 @@ namespace DPI520NEW
             settingsForm = new SettingsForm();
             DialogResult dr = settingsForm.ShowDialog();
             if (dr != DialogResult.OK) return;
+            if (CurrentBarometricPChanged != null)
+                CurrentBarometricPChanged(this);
             // обновить параметры графика
             if (GraphPoints.Count != progState.TimeLength / progState.ReadPInterval)
             {
@@ -640,5 +650,9 @@ namespace DPI520NEW
             }
         }
 
+        private void tscombAG_Click(object sender, EventArgs e)
+        {
+
+        }
     }
 }

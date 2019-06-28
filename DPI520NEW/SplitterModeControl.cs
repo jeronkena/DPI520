@@ -108,7 +108,7 @@ namespace DPI520NEW
             nudMinP.Value = (decimal)PUnitConverter.ConvertP(vmin, args.OldPUnits, MainForm.progState.CurrentPUnits);
             nudMinP.Increment = nudMaxP.Increment;
 
-            controllerIsOn = true;
+            controllerIsOn = controllerIsOnOld;
             UpdatePtLabels();
         }
 
@@ -142,7 +142,7 @@ namespace DPI520NEW
                 nudMinP.Value = (decimal)(vmin - Math.Round(MainForm.progState.CurrentBarometricP, MainForm.progState.RoundToDigits));
             }
 
-            controllerIsOn = true;
+            controllerIsOn = controllerIsOnOld;
             UpdatePtLabels();
         }
 

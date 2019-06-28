@@ -206,6 +206,7 @@
             this.tscombAG.Name = "tscombAG";
             this.tscombAG.Size = new System.Drawing.Size(75, 25);
             this.tscombAG.Text = "Абс.";
+            this.tscombAG.Click += new System.EventHandler(this.tscombAG_Click);
             this.tscombAG.TextChanged += new System.EventHandler(this.tscombAG_TextChanged);
             // 
             // tstbControllerParameters
