@@ -26,9 +26,6 @@ namespace DPI520NEW
             btnGo.Enabled = goBtn;
             btnVent.Enabled = ventBtn;
         }
-
-
-
         public BasicModeControl(Form parentForm)
         {
             InitializeComponent();
@@ -39,16 +36,36 @@ namespace DPI520NEW
             mainFormRef.OnPUnitsChanged += new MainForm.PUnitsChangedEventHandler(Control_PUnitsChanged);
             mainFormRef.OnPTypeChanged += new MainForm.PTypeChangedEventHandler(Control_PTypeChanged);
             mainFormRef.OnNewControllerSelected += new MainForm.SelectedControllerChangedEventHandler(Control_NewControllerSelected);
+            mainFormRef.CurrentBarometricPChanged += new MainForm.CurrentBPChangedEventHandler(CurrentBP_Changed);
+            mainFormRef.CurrentModeChanged += new MainForm.CurrentModeChangedEventHandler(CurrentMode_Changed);
+            if (MainForm.CurrentDPI != null) Control_NewControllerSelected(null);
         }
-
+        private void CurrentMode_Changed(object source)
+        {
+            backgroundWorker1.CancelAsync();
+        }
         private void NudSetpoint_ValueChanged(object sender, EventArgs e)
         {
             setPressure = (double)nudSetpoint.Value;
             if (isSetPressure) MainForm.CurrentDPI.SetPressure((double)nudSetpoint.Value, MainForm.progState.PIsAbsolute);
         }
-
-
-
+        private void CurrentBP_Changed(object source)
+        {
+            double v = (double)nudSetpoint.Value;
+            if (MainForm.progState.PIsAbsolute)
+            {
+                nudSetpoint.Maximum += (decimal)(MainForm.progState.CurrentBarometricP - MainForm.progState.PrevBarometricP);
+                nudSetpoint.Minimum += (decimal)(MainForm.progState.CurrentBarometricP - MainForm.progState.PrevBarometricP);
+                nudSetpoint.Value = (decimal)(v + (MainForm.progState.CurrentBarometricP - MainForm.progState.PrevBarometricP));
+            }
+            else
+            {
+                nudSetpoint.Maximum -= (decimal)(MainForm.progState.CurrentBarometricP - MainForm.progState.PrevBarometricP);
+                nudSetpoint.Minimum -= (decimal)(MainForm.progState.CurrentBarometricP - MainForm.progState.PrevBarometricP);
+                nudSetpoint.Value = (decimal)(v - (MainForm.progState.CurrentBarometricP - MainForm.progState.PrevBarometricP));
+            }
+        }
+        
         private void Control_PUnitsChanged(object source, MainForm.PUnitsChangedEventArgs args)
         {
             // не меняем реальное давление при смене едениц
@@ -93,7 +110,20 @@ namespace DPI520NEW
             nudSetpoint.DecimalPlaces = MainForm.progState.RoundToDigits;
             nudSetpoint.Maximum = (decimal)MainForm.CurrentDPI.MaximalPressure;
             nudSetpoint.Minimum = (decimal)MainForm.CurrentDPI.MinimalPressure;
-            nudSetpoint.Value = (decimal)v;
+            nudSetpoint.Value = (decimal)PUnitConverter.ConvertP(v, PressureUnits.KGS, MainForm.progState.CurrentPUnits);
+            if (MainForm.progState.PIsAbsolute)
+            {
+                nudSetpoint.Maximum += (decimal)MainForm.progState.CurrentBarometricP;
+                nudSetpoint.Minimum += (decimal)MainForm.progState.CurrentBarometricP;
+                //nudSetpoint.Value = (decimal)(v + MainForm.progState.CurrentBarometricP);
+            }
+            else
+            {
+                nudSetpoint.Maximum -= (decimal)MainForm.progState.CurrentBarometricP;
+                nudSetpoint.Minimum -= (decimal)MainForm.progState.CurrentBarometricP;
+                nudSetpoint.Value = (decimal)(v - MainForm.progState.CurrentBarometricP);
+            }
+
         }
 
 
@@ -117,7 +147,11 @@ namespace DPI520NEW
                     Invoke(changeColor, 2);
                 Thread.Sleep(500);
             }
-
+            mainFormRef.OnPUnitsChanged -= new MainForm.PUnitsChangedEventHandler(Control_PUnitsChanged);
+            mainFormRef.OnPTypeChanged -= new MainForm.PTypeChangedEventHandler(Control_PTypeChanged);
+            mainFormRef.OnNewControllerSelected -= new MainForm.SelectedControllerChangedEventHandler(Control_NewControllerSelected);
+            mainFormRef.CurrentBarometricPChanged -= new MainForm.CurrentBPChangedEventHandler(CurrentBP_Changed);
+            mainFormRef.CurrentModeChanged -= new MainForm.CurrentModeChangedEventHandler(CurrentMode_Changed);
             Invoke(changeColor, 0);
             e.Cancel = true;
             return;
@@ -140,6 +174,7 @@ namespace DPI520NEW
             isSetPressure = true;
             ChangeButtonStates(false, true);
             if (!backgroundWorker1.IsBusy) backgroundWorker1.RunWorkerAsync();
+
         }
 
 

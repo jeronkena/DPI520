@@ -210,10 +210,10 @@
             this.nudPointCount.Size = new System.Drawing.Size(166, 29);
             this.nudPointCount.TabIndex = 1;
             this.nudPointCount.Value = new decimal(new int[] {
-            10050,
+            10,
             0,
             0,
-            196608});
+            0});
             this.nudPointCount.ValueChanged += new System.EventHandler(this.nudPointCount_ValueChanged);
             // 
             // lbCurrentSetpoint

@@ -188,6 +188,7 @@
             // 
             // tscombUnits
             // 
+            this.tscombUnits.AccessibleRole = System.Windows.Forms.AccessibleRole.None;
             this.tscombUnits.Font = new System.Drawing.Font("Microsoft Sans Serif", 9.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
             this.tscombUnits.Items.AddRange(new object[] {
             "Абс.",
@@ -417,7 +418,7 @@
         private System.Windows.Forms.ToolStripMenuItem tsbtnSetpointMode;
         private System.Windows.Forms.ToolStripSeparator toolStripSeparator1;
         private System.Windows.Forms.ToolStripLabel toolStripLabel1;
-        private System.Windows.Forms.ToolStripComboBox tscombUnits;
+        public System.Windows.Forms.ToolStripComboBox tscombUnits; 
         private System.Windows.Forms.ToolStripSeparator toolStripSeparator2;
         private System.Windows.Forms.ToolStripTextBox tstbControllerParameters;
         private System.Windows.Forms.ToolStripLabel toolStripLabel3;
@@ -436,7 +437,7 @@
         private System.Windows.Forms.TextBox tbSetP;
         private ZedGraph.ZedGraphControl zgGraph;
         private System.Windows.Forms.TableLayoutPanel tblpControl;
-        private System.Windows.Forms.ToolStripComboBox tscombAG;
+        public System.Windows.Forms.ToolStripComboBox tscombAG; 
         private System.Windows.Forms.Timer ticker;
     }
 }

@@ -28,6 +28,8 @@ namespace DPI520NEW
       
         private bool numericUpDown; 
 
+        private ProgramState progState;
+
         private delegate void ChangeButtonStatesCallback(bool nextBtn, bool prevBtn, bool conoffBtn, bool ventBtn);
 
         public void ChangeButtonStates(bool nextBtn, bool prevBtn, bool conoffBtn, bool ventBtn)
@@ -41,33 +43,30 @@ namespace DPI520NEW
         {
             lbCurrentSetpoint.Text = string.Format("Уставка {0}/{1}", currentPtIndex + 1, nudPointsCount.Value);
             tbCurrentSetpoint.Text = Math.Round(pPoints[currentPtIndex], MainForm.progState.RoundToDigits).ToString();
-            try
+            if (dgvSetpoints.Rows.Count != 0)
             {
-                if (dgvSetpoints.Rows.Count != 0) {
                 for (int i = 0; i < nudPointsCount.Value; i++)
                 {
                     dgvSetpoints.Rows[i].Selected = false;
                 }
-            }
-                dgvSetpoints.Rows[currentPtIndex].Selected = true;
-                if (controllerIsOn) MainForm.CurrentDPI.SetPressure(pPoints[currentPtIndex], MainForm.progState.PIsAbsolute);
-            }
-            catch
-            {
-
-            }
+            
+            dgvSetpoints.Rows[currentPtIndex].Selected = true;
+            if (controllerIsOn) MainForm.CurrentDPI.SetPressure(pPoints[currentPtIndex], MainForm.progState.PIsAbsolute);
         }
-        
+        }
+
         public SetptModeControl(Form parentForm)
         {
             InitializeComponent();
+            progState = new ProgramState();
             numericUpDown = false;
             pPoints = new double[(int)nudPointsCount.Maximum];
             mainFormRef = (MainForm)parentForm;
             mainFormRef.OnPUnitsChanged += new MainForm.PUnitsChangedEventHandler(Control_PUnitsChanged);
             mainFormRef.OnPTypeChanged += new MainForm.PTypeChangedEventHandler(Control_PTypeChanged);
             mainFormRef.OnNewControllerSelected += new MainForm.SelectedControllerChangedEventHandler(Control_NewControllerSelected);
-           
+            mainFormRef.CurrentBarometricPChanged += new MainForm.CurrentBPChangedEventHandler(CurrentBP_Changed);
+            mainFormRef.CurrentModeChanged += new MainForm.CurrentModeChangedEventHandler(CurrentMode_Changed);
 
             nudPointsCount.Value = 10;
             currentPtIndex = 0;
@@ -82,45 +81,75 @@ namespace DPI520NEW
             }
             
         }
-        private void CurrentBP_Changed()
-        {
 
-        }
-        private void Control_PUnitsChanged(object source, MainForm.PUnitsChangedEventArgs args)
+        private void CurrentMode_Changed(object source)
         {
-            // не меняем реальное давление при смене едениц
+            backgroundWorker1.CancelAsync();
+        }
+        private void CurrentBP_Changed(object source)
+        {
+            // ProgramState ps = new ProgramState();
+            // не меняем реальное давление при смене единиц
             bool controllerIsOnOld = controllerIsOn;
             controllerIsOn = false;
-            for (int i = 0; i < pPoints.Length; i++)
+            if (MainForm.progState.PIsAbsolute)
             {
-                pPoints[i] = (double)PUnitConverter.ConvertP((double)pPoints[i], args.OldPUnits, MainForm.progState.CurrentPUnits);
-            }
-            for (int i = 0; i < nudPointsCount.Value; i++)
-            {
-                dgvSetpoints.Rows[i].Cells[0].Value = pPoints[i];
+                for (int i = 0; i < nudPointsCount.Value; i++)
+                {
+                    pPoints[i] += MainForm.progState.CurrentBarometricP - MainForm.progState.PrevBarometricP;
+                }
+
+                for (int i = 0; i < dgvSetpoints.Rows.Count; i++)
+                {
+                    dgvSetpoints.Rows[i].Cells[0].Value = pPoints[i];
+                }
             }
             controllerIsOn = controllerIsOnOld;
             UpdatePtLabels();
         }
+        private void Control_PUnitsChanged(object source, MainForm.PUnitsChangedEventArgs args)
+        {
+            if (dgvSetpoints.Rows.Count != 0) {
+                // не меняем реальное давление при смене единиц
+                bool controllerIsOnOld = controllerIsOn;
+                controllerIsOn = false;
+                for (int i = 0; i < nudPointsCount.Value; i++)
+                {
+                    pPoints[i] = PUnitConverter.ConvertP(pPoints[i], args.OldPUnits, MainForm.progState.CurrentPUnits);
+                }
+
+                for (int j = 0; j < nudPointsCount.Value; j++)
+                {
+                    dgvSetpoints.Rows[j].Cells[0].Value = pPoints[j];
+                }
+                controllerIsOn = controllerIsOnOld;
+                UpdatePtLabels();
+            }
+        }
 
         private void Control_PTypeChanged(object source)
         {
-            // не меняем реальное давление при смене едениц
+            // не меняем реальное давление при смене единиц
             bool controllerIsOnOld = controllerIsOn;
             controllerIsOn = false;
-            for (int i = 0; i < nudPointsCount.Value; i++) {
-                if (MainForm.progState.PIsAbsolute)
+            try
+            {
+                for (int i = 0; i < nudPointsCount.Value; i++)
                 {
-                    pPoints[i] = pPoints[i] + Math.Round(MainForm.progState.CurrentBarometricP, MainForm.progState.RoundToDigits);
-                    dgvSetpoints.Rows[i].Cells[0].Value = pPoints[i];
-                }
-                else
-
-                {
-                    pPoints[i] = pPoints[i] - Math.Round(MainForm.progState.CurrentBarometricP, MainForm.progState.RoundToDigits);
-                    dgvSetpoints.Rows[i].Cells[0].Value = pPoints[i];
+                    if (MainForm.progState.PIsAbsolute)
+                    {
+                        pPoints[i] = pPoints[i] + Math.Round(MainForm.progState.CurrentBarometricP, MainForm.progState.RoundToDigits);
+                        dgvSetpoints.Rows[i].Cells[0].Value = pPoints[i];
+                    }
+                    else
+                    {
+                        pPoints[i] = pPoints[i] - Math.Round(MainForm.progState.CurrentBarometricP, MainForm.progState.RoundToDigits);
+                        dgvSetpoints.Rows[i].Cells[0].Value = pPoints[i];
+                    }
                 }
             }
+            catch { };
+
             controllerIsOn = controllerIsOnOld;
             UpdatePtLabels();
         }
@@ -157,8 +186,15 @@ namespace DPI520NEW
                 else
                     Invoke(changeColor, 2);
                 Thread.Sleep(500);
+
+                //if (!mainFormRef.changeCurrentMode) backgroundWorker1.CancelAsync();
             }
 
+            mainFormRef.OnPUnitsChanged -= new MainForm.PUnitsChangedEventHandler(Control_PUnitsChanged);
+            mainFormRef.OnPTypeChanged -= new MainForm.PTypeChangedEventHandler(Control_PTypeChanged);
+            mainFormRef.OnNewControllerSelected -= new MainForm.SelectedControllerChangedEventHandler(Control_NewControllerSelected);
+            mainFormRef.CurrentBarometricPChanged -= new MainForm.CurrentBPChangedEventHandler(CurrentBP_Changed);
+            mainFormRef.CurrentModeChanged -= new MainForm.CurrentModeChangedEventHandler(CurrentMode_Changed);
             Invoke(changeColor, 0);
             e.Cancel = true;
             return;
@@ -182,6 +218,7 @@ namespace DPI520NEW
             {
                 btnControllerOnOff.Text = "Выключить контроллер";
                 controllerIsOn = true;
+                //MainForm.changeCurrentMode = true;
                 if (!backgroundWorker1.IsBusy) backgroundWorker1.RunWorkerAsync();
             }
             else // выключаем контроллер
@@ -254,19 +291,66 @@ namespace DPI520NEW
                     currentPtIndex = 0;
 
                     dgvSetpoints.Rows.Clear();
-                    while ((str = streamreader.ReadLine()) != null)
-                    {
-                        // if (count < (int)nudPointsCount.Value) {
 
-                        dgvSetpoints.Rows.Add(str);
-                        pPoints[count] = Convert.ToDouble(str);
-                        count++;
-                        // };
+                while ((str = streamreader.ReadLine()) != null)
+                {
+                    if (count == 0)
+                    {
+                        switch (str)
+                        {
+                            case "KGM":
+                                MainForm.progState.CurrentPUnits = PressureUnits.KGM; break;
+                            case "MPA":
+                                MainForm.progState.CurrentPUnits = PressureUnits.MPA; break;
+                            case "ATM":
+                                MainForm.progState.CurrentPUnits = PressureUnits.ATM; break;
+                            case "BAR":
+                                MainForm.progState.CurrentPUnits = PressureUnits.BAR; break;
+                            case "KGS":
+                                MainForm.progState.CurrentPUnits = PressureUnits.KGS; break;
+                            case "KPA":
+                                MainForm.progState.CurrentPUnits = PressureUnits.KGS; break;
+                            case "MMHG":
+                                MainForm.progState.CurrentPUnits = PressureUnits.KGS; break;
+                            case "HPA":
+                                MainForm.progState.CurrentPUnits = PressureUnits.KGS; break;
+                            case "PSI":
+                                MainForm.progState.CurrentPUnits = PressureUnits.KGS; break;
+                            case "MBAR":
+                                MainForm.progState.CurrentPUnits = PressureUnits.KGS; break;
+                            case "PA":
+                                MainForm.progState.CurrentPUnits = PressureUnits.KGS; break;
+                            default: break;
+                        }
                     }
-                    nudPointsCount.Value = count;
+                    else
+                    {
+
+                        if (count == 1)
+                        {
+                            if (str == "Абс.")
+                            {
+                                MainForm.progState.PIsAbsolute = true;
+                                mainFormRef.tscombAG.SelectedItem = "Абс.";
+                            }
+                            else
+                            {
+                                MainForm.progState.PIsAbsolute = false;
+                                mainFormRef.tscombAG.SelectedItem = "Изб.";
+                            };
+                        }
+                        else
+                        {
+                            dgvSetpoints.Rows.Add(str);
+                            pPoints[count - 2] = Convert.ToDouble(str);
+                        }
+                    }
+                        count++;
+                }
+                    nudPointsCount.Value = count - 2;
                     streamreader.Close();
                     UpdatePtLabels();
-                
+                    mainFormRef.tscombUnits.SelectedItem = PUnitConverter.PUnitToString(MainForm.progState.CurrentPUnits);
             }
         }
 
@@ -276,10 +360,12 @@ namespace DPI520NEW
             saveFileDialog1.Filter = "text files(*.txt)|*.txt";
             if (saveFileDialog1.ShowDialog() == DialogResult.OK)
             {
-                string filename = saveFileDialog1.FileName;
-                    FileStream fstream = new FileStream(filename, FileMode.OpenOrCreate);
-                    StreamWriter streamWriter = new StreamWriter(fstream);
-                    for (int j = 0; j < nudPointsCount.Value; j++)
+               string filename = saveFileDialog1.FileName;
+               FileStream fstream = new FileStream(filename, FileMode.OpenOrCreate);
+               StreamWriter streamWriter = new StreamWriter(fstream);
+               streamWriter.WriteLine(MainForm.progState.CurrentPUnits);
+               streamWriter.WriteLine(mainFormRef.tscombAG.SelectedItem);
+                for (int j = 0; j < nudPointsCount.Value; j++)
                     {
                         streamWriter.WriteLine("{0} ", pPoints[j]);
                     };

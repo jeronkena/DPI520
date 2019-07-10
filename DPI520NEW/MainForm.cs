@@ -39,7 +39,7 @@ namespace DPI520NEW
         /// Текущее атмосферное давление
         /// </summary>
         public double CurrentBarometricP;
-
+        public double PrevBarometricP;
         /// <summary>
         /// Текущее время выдержки после уставки давления, сек
         /// </summary>
@@ -64,13 +64,14 @@ namespace DPI520NEW
         /// До скольки знаков округлять
         /// </summary>
         public int RoundToDigits;
-
+        
         /// <summary>
         /// Конструктор копирования
         /// </summary>
         /// <param name="ps"></param>
         public ProgramState(ProgramState ps)
         {
+            PrevBarometricP = ps.CurrentBarometricP;
             CurrentPUnits = ps.CurrentPUnits;
             CurrentBarometricP = ps.CurrentBarometricP;
             CurrentSetptPrecision = ps.CurrentSetptPrecision;
@@ -169,10 +170,17 @@ namespace DPI520NEW
         public delegate void UpdateText(string text);
         public delegate void UpdateColor(int i);
         public delegate void CurrentBPChangedEventHandler(object source);
+        public delegate void CurrentModeChangedEventHandler(object source);
+
         /// <summary>
         /// Событие об изменении значения атмосферного давления
         /// </summary>
         public event CurrentBPChangedEventHandler CurrentBarometricPChanged;
+
+        /// <summary>
+        /// Событие об изменении режима
+        /// </summary>
+        public event CurrentModeChangedEventHandler CurrentModeChanged;
 
         /// <summary>
         /// Событие об изменении единиц давления
@@ -189,12 +197,12 @@ namespace DPI520NEW
         /// </summary>
         public event SelectedControllerChangedEventHandler OnNewControllerSelected;
 
+        //public bool changeCurrentMode;
 
 
         public MainForm()
         {
             InitializeComponent();
-            CurrentBarometricPChanged += new MainForm.CurrentBPChangedEventHandler(CurrentBPChanged);
             progState = new ProgramState();
             progState.CurrentPUnits = PressureUnits.KGS;
             progState.CurrentBarometricP = 1.0;
@@ -210,6 +218,7 @@ namespace DPI520NEW
             CurrentSetpt = 1.00;
 
             CurrentDPI = null;
+            
 
             GraphPoints = new RollingPointPairList(progState.TimeLength / progState.ReadPInterval);
 
@@ -219,17 +228,43 @@ namespace DPI520NEW
         }
         private void CurrentBPChanged(object source)
         {
-            MessageBox.Show("gdgfdfghfdg");
+            if (progState.PIsAbsolute)
+            {
+                if (progState.CurrentBarometricP != progState.PrevBarometricP)
+                {
+                    CurrentP += (progState.CurrentBarometricP - progState.PrevBarometricP);
+                    tbCurrentP.Text = Math.Round(CurrentP, progState.RoundToDigits).ToString();
+                    CurrentSetpt += (progState.CurrentBarometricP - progState.PrevBarometricP);
+                    tbSetP.Text = Math.Round(CurrentSetpt, progState.RoundToDigits).ToString();
+                    // Уставнавливаем в DPI атмосферное давление
+                    CurrentDPI.BarometricP = progState.CurrentBarometricP;
+
+                    for (int i = 0; i < GraphPoints.Count; i++)
+                        GraphPoints[i].Y += (progState.CurrentBarometricP - progState.PrevBarometricP);
+
+                    zgGraph.AxisChange();
+                    zgGraph.Invalidate();
+
+                    CurrentBarometricPChanged?.Invoke(this);
+                }
+            }
         }
 
 
         private void tsbtnSettings_Click(object sender, EventArgs e)
         {
             settingsForm = new SettingsForm();
+           // MainForm.progState.PrevBarometricP = MainForm.progState.CurrentBarometricP;
             DialogResult dr = settingsForm.ShowDialog();
             if (dr != DialogResult.OK) return;
-            if (CurrentBarometricPChanged != null)
-                CurrentBarometricPChanged(this);
+            // MainForm.progState.CurrentBarometricP = PUnitConverter.ConvertP((double)settingsForm.nudBarometricP.Value, PressureUnits.KGS, MainForm.progState.CurrentPUnits);
+            if (CurrentBarometricPChanged != null) //------------------------------------------------------------
+            {
+                ticker.Stop();
+                CurrentBPChanged(this);
+                ticker.Start();
+            }
+
             // обновить параметры графика
             if (GraphPoints.Count != progState.TimeLength / progState.ReadPInterval)
             {
@@ -239,6 +274,7 @@ namespace DPI520NEW
                 zgGraph.GraphPane.CurveList.Clear();
                 zgGraph.GraphPane.AddCurve("", GraphPoints, Color.DarkBlue, SymbolType.None);
             }
+            
             // обновить параметры таймера
             ticker.Interval = progState.ReadPInterval * 1000;
         }
@@ -248,7 +284,7 @@ namespace DPI520NEW
         private void основнойToolStripMenuItem_Click(object sender, EventArgs e)
         {
             progState.CurrentMode = 0;
-
+          
             // если режим уже выбран
             if (!tsbtnGeneralMode.Checked)
             {
@@ -259,6 +295,8 @@ namespace DPI520NEW
             }
             else
             {
+                CurrentModeChanged?.Invoke(this);
+
                 // оставляем отмеченным только его
                 tsbtnSetpointMode.Checked = false;
                 tsbtnSplitterMode.Checked = false;
@@ -284,7 +322,7 @@ namespace DPI520NEW
         private void tsbtnSplitterMode_Click(object sender, EventArgs e)
         {
             progState.CurrentMode = 1;
-
+           
             // если режим уже выбран
             if (!tsbtnSplitterMode.Checked)
             {
@@ -295,6 +333,8 @@ namespace DPI520NEW
             }
             else
             {
+                CurrentModeChanged?.Invoke(this);
+
                 // оставляем отмеченным только его
                 tsbtnSetpointMode.Checked = false;
                 tsbtnGeneralMode.Checked = false;
@@ -320,7 +360,7 @@ namespace DPI520NEW
         private void tsbtnSetpointMode_Click(object sender, EventArgs e)
         {
             progState.CurrentMode = 2;
-
+           
             // если режим уже выбран
             if (!tsbtnSetpointMode.Checked)
             {
@@ -331,6 +371,8 @@ namespace DPI520NEW
             }
             else
             {
+                CurrentModeChanged?.Invoke(this);
+
                 // оставляем отмеченным только его
                 tsbtnSplitterMode.Checked = false;
                 tsbtnGeneralMode.Checked = false;
@@ -388,9 +430,7 @@ namespace DPI520NEW
         {
             FindDPIInstruments();
         }
-
-
-
+        
         // поиск контроллеров DPI
         private void FindDPIInstruments()
         {
@@ -442,9 +482,7 @@ namespace DPI520NEW
             }
             else FoundDPIs = true;
         }
-
-
-
+        
         private void tsbtnSelectController_Click(object sender, EventArgs e)
         {
             // если выбран тот же контроллер
@@ -539,14 +577,12 @@ namespace DPI520NEW
 
             currentTime = DateTime.Now;
         }
-
-
-
+        
         private void tscombAG_TextChanged(object sender, EventArgs e)
         {
             // меняем режим
             progState.PIsAbsolute = !progState.PIsAbsolute;
-
+            var myPane = zgGraph.GraphPane;
             // 
             if (progState.PIsAbsolute)
             {
@@ -556,6 +592,7 @@ namespace DPI520NEW
                 tbSetP.Text = Math.Round(CurrentSetpt, progState.RoundToDigits).ToString();
 
                 // преобразуем точки графика в новую систему отсчёта давления
+                //myPane.YAxis.Scale.Min = progState.CurrentBarometricP;
                 for (int i = 0; i < GraphPoints.Count; i++)
                     GraphPoints[i].Y += progState.CurrentBarometricP;
             }
@@ -565,7 +602,7 @@ namespace DPI520NEW
                 tbCurrentP.Text = Math.Round(CurrentP, progState.RoundToDigits).ToString();
                 CurrentSetpt -= progState.CurrentBarometricP;
                 tbSetP.Text = Math.Round(CurrentSetpt, progState.RoundToDigits).ToString();
-
+                myPane.YAxis.Scale.Min = 0;
                 // преобразуем точки графика в новую систему отсчёта давления
                 for (int i = 0; i < GraphPoints.Count; i++)
                     GraphPoints[i].Y -= progState.CurrentBarometricP;

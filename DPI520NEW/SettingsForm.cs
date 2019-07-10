@@ -19,8 +19,8 @@ namespace DPI520NEW
             InitializeComponent();
             pStateInit = new ProgramState(MainForm.progState);
             //            if (MainForm.CurrentDPI != null && MainForm.CurrentDPI.HasBarometricSensor) nudBarometricP.Enabled = false;
+            MainForm.progState.PrevBarometricP = MainForm.progState.CurrentBarometricP;
         }
-
         private void nudSetpointPrecision_ValueChanged(object sender, EventArgs e)
         {
             MainForm.progState.CurrentSetptPrecision = (double)nudSetpointPrecision.Value / 100;
@@ -35,7 +35,6 @@ namespace DPI520NEW
         {
             MainForm.progState.ReadPInterval = (int)nudMeasurementInterval.Value;
         }
-
         private void nudBarometricP_ValueChanged(object sender, EventArgs e)
         {
             MainForm.progState.CurrentBarometricP = PUnitConverter.ConvertP((double)nudBarometricP.Value, PressureUnits.KGS, MainForm.progState.CurrentPUnits);
@@ -57,7 +56,7 @@ namespace DPI520NEW
 
         private void btnOK_Click(object sender, EventArgs e)
         {
-           
+            MainForm.progState.CurrentBarometricP = PUnitConverter.ConvertP((double)nudBarometricP.Value, PressureUnits.KGS, MainForm.progState.CurrentPUnits);
         }
 
         private void nudGraphTScale_ValueChanged(object sender, EventArgs e)
